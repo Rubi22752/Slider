@@ -7,16 +7,23 @@ app = Flask(__name__)
 app.secret_key = 'clave_secreta_rubi'
 
 # Configuración de base de datos
-db_config = {
-    'user': 'rhernandez',
-    'password': 'rubi#2004',
-    'host': '127.0.0.1',
-    'database': 'slider_db'
-}
+#db_config = {
+ #   'user': 'rhernandez',
+  #  'password': 'rubi#2004',
+   # 'host': '127.0.0.1',
+    #'database': 'slider_db'
+#}
 
+#def conectar_db():
+ #   return mysql.connector.connect(**db_config)
+# Configuración para PostgreSQL
 def conectar_db():
-    return mysql.connector.connect(**db_config)
-
+    return psycopg2.connect(
+        host='127.0.0.1',
+        user='rhernandez',
+        password='rubi#2004',
+        database='slider_db'
+    )
 @app.route('/')
 def login_page():
     return render_template('login.html')
