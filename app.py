@@ -1,8 +1,8 @@
 import os
 from flask import Flask, render_template, request, jsonify, session, redirect
-import mysql.connector
+#import mysql.connector
 import base64
-
+import psycopg2         <-- Versión para Postgres
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_rubi'
 
