@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Slider de Rubí</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; }
+        .slider-box {
+            max-width: 800px; margin: 30px auto; position: relative;
+            border-radius: 20px; overflow: hidden; border: 3px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        #display-img { width: 100%; height: 480px; object-fit: cover; }
+        .flecha {
+            cursor: pointer; font-size: 2.5rem; position: absolute;
+            top: 50%; transform: translateY(-50%); color: white; z-index: 10;
+            background: rgba(0,0,0,0.5); border-radius: 50%; padding: 0 10px;
+        }
+        .flecha-izq { left: 15px; } .flecha-der { right: 15px; }
+        #url-dinamica {
+            max-width: 800px; margin: 20px auto; padding: 20px;
+            background: #1e1e1e; border-radius: 15px; border: 1px dashed #555;
+            min-height: 120px; text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container text-center pt-5">
+        <h1 class="mb-4">Paisajes Bonitos</h1>
+
+        <div class="slider-box">
+            <i class="bi bi-chevron-left flecha flecha-izq" onclick="mover(-1)"></i>
+            <img id="display-img" src="" alt="Cargando...">
+            <i class="bi bi-chevron-right flecha flecha-der" onclick="mover(1)"></i>
+            <div class="bg-dark p-2"><h3 id="img-name" class="text-info m-0">...</h3></div>
+        </div>
+
+        <div class="mt-2 mb-2" style="background: #1a1a1a; padding: 10px; border-radius: 8px;">
+            <span style="color: #888;">URL del Recurso:</span>
+            <span id="ruta-actual" style="color: #00ff00; font-family: monospace;">/static/contenidos/...</span>
+        </div>
+
+        <div id="url-dinamica">Cargando información...</div>
+
+        <div class="card bg-dark text-white p-4 mx-auto mb-5" style="max-width: 800px; border: 1px solid #444;">
+            <div class="row g-2">
+                <div class="col-md-5"><input type="text" id="nombre-in" class="form-control" placeholder="Nombre del paisaje"></div>
+                <div class="col-md-5"><input type="file" id="foto-in" class="form-control"></div>
+                <div class="col-md-2"><button class="btn btn-success w-100" onclick="subir()"><i class="bi bi-plus-lg"></i></button></div>
+            </div>
+            <div class="mt-3 d-flex justify-content-center gap-2">
+                <button class="btn btn-primary" onclick="actualizar()"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+                <button class="btn btn-danger" onclick="eliminar()"><i class="bi bi-trash"></i> Borrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fotos = [];
+        let index = 0;
+
+        function cargarDatos() {
+            $.get('/obtener_imagenes', function(data) {
+                fotos = data;
+                if(fotos.length > 0) mostrar(0);
+                else {
+                    $('#img-name').text("No hay fotos");
+                    $('#display-img').attr('src', '');
+                }
+            });
+        }
+
+        function mostrar(i) {
+            index = i;
+            let p = fotos[i];
+            let nombreArchivo = p.nombre.trim();
+            let rutaCompleta = '/static/contenidos/' + nombreArchivo + '.html';
+
+            $('#img-name').text(p.nombre);
+            $('#ruta-actual').text(rutaCompleta);
+            $('#display-img').attr('src', 'data:image/jpeg;base64,' + p.imagen);
+
+            $.ajax({
+                url: rutaCompleta,
+                type: 'GET',
+                success: function(res) { $('#url-dinamica').html(res); },
+                error: function() { $('#url-dinamica').html("<p class='text-muted'>Sin descripción disponible.</p>"); }
+            });
+        }
+
+        function mover(dir) {
+            if(fotos.length === 0) return;
+            index = (index + dir + fotos.length) % fotos.length;
+            mostrar(index);
+        }
+
+        function subir() {
+            let fd = new FormData();
+            let archivo = $('#foto-in')[0].files[0];
+            let nombre = $('#nombre-in').val();
+
+            if(!archivo || !nombre) return alert("Llena el nombre y selecciona una foto");
+
+            fd.append('nombre', nombre);
+            fd.append('imagen', archivo);
+
+            $.ajax({
+                url: '/agregar', type: 'POST', data: fd, processData: false, contentType: false,
+                success: function() {
+                    alert("Añadido con éxito");
+                    $('#nombre-in').val('');
+                    $('#foto-in').val('');
+                    cargarDatos();
+                },
+                error: function() { alert("Error al agregar"); }
+            });
+        }
+
+        function actualizar() {
+            if(fotos.length === 0) return alert("No hay imagen para actualizar");
+            
+            let fd = new FormData();
+            let archivo = $('#foto-in')[0].files[0];
+            let nombre = $('#nombre-in').val();
+
+            if(!archivo || !nombre) return alert("Escribe un nombre y selecciona la nueva foto");
+
+            fd.append('id', fotos[index].id);
+            fd.append('nombre', nombre);
+            fd.append('imagen', archivo);
+
+            $.ajax({
+                url: '/update_image', type: 'POST', data: fd, processData: false, contentType: false,
+                success: function() {
+                    alert("¡Actualizado con éxito!");
+                    $('#nombre-in').val(''); $('#foto-in').val('');
+                    cargarDatos();
+                },
+                error: function() { alert("Error al actualizar"); }
+            });
+        }
+
+        function eliminar() {
+            if(fotos.length === 0) return;
+            if(confirm("¿Seguro que quieres borrar " + fotos[index].nombre + "?")) {
+                $.ajax({ 
+                    url: '/borrar/' + fotos[index].id, 
+                    type: 'DELETE', 
+                    success: function() {
+                        alert("Borrado");
+                        cargarDatos();
+                    }
+                });
+            }
+        }
+
+        $(document).ready(cargarDatos);
+    </script>
+</body>
+</html>
