@@ -1,29 +1,33 @@
+from psycopg2.extras import RealDictCursor
 import os
 from flask import Flask, render_template, request, jsonify, session, redirect
-#import mysql.connector
+# import mysql.connector
 import base64
-import psycopg2         <-- Versión para Postgres
+import psycopg2
+
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_rubi'
 
-# Configuración de base de datos
-#db_config = {
- #   'user': 'rhernandez',
-  #  'password': 'rubi#2004',
-   # 'host': '127.0.0.1',
-    #'database': 'slider_db'
-#}
+# --- CONFIGURACIÓN ANTERIOR (MYSQL COMENTADA) ---
+# db_config = {
+#     'user': 'rhernandez',
+#     'password': 'rubi#2004',
+#     'host': '127.0.0.1',
+#     'database': 'slider_db'
+# }
 
-#def conectar_db():
- #   return mysql.connector.connect(**db_config)
-# Configuración para PostgreSQL
+# def conectar_db():
+#     return mysql.connector.connect(**db_config)
+
+# --- CONFIGURACIÓN ACTUAL (POSTGRESQL) ---
 def conectar_db():
     return psycopg2.connect(
         host='127.0.0.1',
         user='rhernandez',
         password='rubi#2004',
-        database='slider_db'
+        database='slider_db'  # Corregido según tu imagen de la terminal
     )
+
 @app.route('/')
 def login_page():
     return render_template('login.html')
@@ -41,8 +45,8 @@ def verificar_login():
     email = datos.get('email')
 
     conexion = conectar_db()
-    cursor = conexion.cursor(dictionary=True)
-
+    # cursor = conexion.cursor(dictionary=True) # MySQL
+    cursor = conexion.cursor(cursor_factory=RealDictCursor) # PostgreSQL
     query_busqueda = "SELECT * FROM usuarios WHERE nombre = %s AND email = %s"
     cursor.execute(query_busqueda, (nombre, email))
     usuario = cursor.fetchone()
@@ -64,11 +68,11 @@ def verificar_login():
 @app.route('/obtener_imagenes')
 def obtener_imagenes():
     conexion = conectar_db()
-    cursor = conexion.cursor(dictionary=True)
-    cursor.execute("SELECT id, nombre, imagen FROM galeria")
+    cursor = conexion.cursor(cursor_factory=RealDictCursor)
+    # Usamos 'sliders' porque es el nombre que sale en tu \dt
+    cursor.execute("SELECT id, nombre, imagen FROM sliders")
     fotos = cursor.fetchall()
 
-    # Convertimos el binario de la DB a base64 para que el HTML lo entienda
     for foto in fotos:
         if foto['imagen']:
             foto['imagen'] = base64.b64encode(foto['imagen']).decode('utf-8')
@@ -82,15 +86,16 @@ def agregar():
     try:
         nombre = request.form.get('nombre')
         file = request.files.get('imagen')
-        
+
         if not file:
             return jsonify({"error": "No hay imagen"}), 400
-
+        
         contenido_binario = file.read()
 
         conn = conectar_db()
         cursor = conn.cursor()
-        sql = "INSERT INTO galeria (nombre, imagen) VALUES (%s, %s)"
+        # Cambiado 'galeria' por 'sliders' para que coincida con tu DB
+        sql = "INSERT INTO sliders (nombre, imagen) VALUES (%s, %s)"
         cursor.execute(sql, (nombre, contenido_binario))
         conn.commit()
         cursor.close()
@@ -113,7 +118,7 @@ def update_image():
 
         conn = conectar_db()
         cursor = conn.cursor()
-        sql = "UPDATE galeria SET nombre = %s, imagen = %s WHERE id = %s"
+        sql = "UPDATE sliders SET nombre = %s, imagen = %s WHERE id = %s"
         cursor.execute(sql, (nombre_texto, contenido_binario, image_id))
         conn.commit()
         cursor.close()
@@ -127,7 +132,7 @@ def borrar(id):
     try:
         conn = conectar_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM galeria WHERE id = %s", (id,))
+        cursor.execute("DELETE FROM sliders WHERE id = %s", (id,))
         conn.commit()
         cursor.close()
         conn.close()
